@@ -3,7 +3,10 @@ import cv from "@techstark/opencv-js";
 /**
  * TODO
  *  - expose some nice easy-to-use API
- *  -
+ *    - pass scanned document image to outside
+ *    - expose canvas that displays scanning-feed
+ *    - customize drag-handles etc
+ *
  */
 
 // TODO find proper way to inject necessary HTHML
@@ -14,6 +17,15 @@ document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
 const videoElement = document.createElement("video");
 videoElement.autoplay = true;
 
+/**
+ * we need 2 canvas elements
+ *  - one for getting the image:
+ *    stream -> video element -> canvas element -> image
+ *  - second one for displaying the image once processed by
+ *    open CV
+ * TODO is there not simpler way to do this???
+ */
+const canvasForGettingImage = document.createElement("canvas");
 const canvasElement = document.getElementById(
   "canvasElement"
 ) as HTMLCanvasElement;
@@ -54,15 +66,33 @@ videoElement.addEventListener("canplay", (ev) => {
   canvasElement.style.width = videoElement.videoWidth + "px";
   canvasElement.style.height = videoElement.videoHeight + "px";
 
+  canvasForGettingImage.width = videoElement.videoWidth;
+  canvasForGettingImage.height = videoElement.videoHeight;
+  canvasForGettingImage.style.width = videoElement.videoWidth + "px";
+  canvasForGettingImage.style.height = videoElement.videoHeight + "px";
+
   drawImage();
 });
 
 function drawImage() {
-  const context = canvasElement.getContext("2d") as CanvasRenderingContext2D;
+  const contextForGettingImage = canvasForGettingImage.getContext(
+    "2d"
+  ) as CanvasRenderingContext2D;
+  contextForGettingImage.drawImage(videoElement, 0, 0);
 
-  // scale
-  context.drawImage(videoElement, 0, 0);
+  const img = canvasForGettingImage.toDataURL("image/jpeg");
+
+  const contextForDisplay = canvasElement.getContext(
+    "2d"
+  ) as CanvasRenderingContext2D;
+
+  const image = new Image();
+  image.src = img;
+  contextForDisplay.drawImage(image, 0, 0);
+
   requestAnimationFrame(() => {
     drawImage();
   });
 }
+
+function detectDocument() {}
