@@ -80,8 +80,12 @@ function drawImage() {
   ) as CanvasRenderingContext2D;
   contextForGettingImage.drawImage(videoElement, 0, 0);
 
-  const img = canvasForGettingImage.toDataURL("image/jpeg");
+  const image = cv.imread(canvasForGettingImage);
 
+  detectDocument(image);
+  cv.imshow(canvasElement, image);
+
+  /* 
   const contextForDisplay = canvasElement.getContext(
     "2d"
   ) as CanvasRenderingContext2D;
@@ -89,10 +93,64 @@ function drawImage() {
   const image = new Image();
   image.src = img;
   contextForDisplay.drawImage(image, 0, 0);
+  */
 
   requestAnimationFrame(() => {
     drawImage();
   });
 }
 
-function detectDocument() {}
+function detectDocument(image: cv.Mat) {
+  // Convert the image to grayscale
+  const gray = new cv.Mat();
+  cv.cvtColor(image, gray, cv.COLOR_RGBA2GRAY, 0);
+
+  // Apply Gaussian blur to reduce noise
+  const blurred = new cv.Mat();
+  cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+
+  // Perform edge detection using Canny algorithm
+  const edges = new cv.Mat();
+  cv.Canny(blurred, edges, 50, 150);
+
+  // Find contours in the image
+  const contours = new cv.MatVector();
+  const hierarchy = new cv.Mat();
+  cv.findContours(
+    edges,
+    contours,
+    hierarchy,
+    cv.RETR_EXTERNAL,
+    cv.CHAIN_APPROX_SIMPLE
+  );
+
+  // Iterate over the contours and find rectangles
+  for (let i = 0; i < contours.size(); i++) {
+    const contour = contours.get(i);
+    const perimeter = cv.arcLength(contour, true);
+    const approx = new cv.Mat();
+    cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
+
+    // Check if the contour is rectangular
+    if (approx.size().height === 4) {
+      // XXX if we found something, we need to extract the
+      // found document, stop scanning and display the document
+      // bigger
+
+      // Draw a green rectangle around the detected object
+      const rect = cv.boundingRect(approx);
+
+      const point1 = new cv.Point(rect.x, rect.y);
+      const point2 = new cv.Point(rect.x + rect.width, rect.y + rect.height);
+
+      cv.rectangle(image, point1, point2, [255, 0, 0, 255], 2);
+    }
+  }
+
+  // Display the result
+  gray.delete();
+  blurred.delete();
+  edges.delete();
+  contours.delete();
+  hierarchy.delete();
+}
