@@ -54,6 +54,7 @@ navigator.mediaDevices
   });
 
 let isStreaming = false;
+let contextForGettingImage: CanvasRenderingContext2D;
 videoElement.addEventListener("canplay", (ev) => {
   if (isStreaming) {
     return;
@@ -71,36 +72,49 @@ videoElement.addEventListener("canplay", (ev) => {
   canvasForGettingImage.style.width = videoElement.videoWidth + "px";
   canvasForGettingImage.style.height = videoElement.videoHeight + "px";
 
+  contextForGettingImage = canvasForGettingImage.getContext("2d", {
+    willReadFrequently: true,
+  }) as CanvasRenderingContext2D;
+
   drawImage();
 });
 
 function drawImage() {
-  const contextForGettingImage = canvasForGettingImage.getContext(
-    "2d"
-  ) as CanvasRenderingContext2D;
   contextForGettingImage.drawImage(videoElement, 0, 0);
 
   const image = cv.imread(canvasForGettingImage);
 
-  detectDocument(image);
-  cv.imshow(canvasElement, image);
+  const detected = detectDocument(image);
 
-  /* 
-  const contextForDisplay = canvasElement.getContext(
-    "2d"
-  ) as CanvasRenderingContext2D;
+  console.log(detected.points);
 
-  const image = new Image();
-  image.src = img;
-  contextForDisplay.drawImage(image, 0, 0);
-  */
+  cv.imshow(canvasElement, detected.image);
 
-  requestAnimationFrame(() => {
-    drawImage();
-  });
+  // delay next execution a bit to allow system to calculate everything
+  setTimeout(() => {
+    requestAnimationFrame(() => {
+      drawImage();
+    });
+  }, 100);
 }
 
-function detectDocument(image: cv.Mat) {
+/**
+ * this function handles OpenCV detection. takes input image, detects whatever and returns
+ * processed image ()
+ *
+ * @param image this
+ * @returns
+ */
+type Detection = {
+  image: cv.Mat;
+  points: {
+    x1: cv.Point;
+    y1: cv.Point;
+    x2: cv.Point;
+    y2: cv.Point;
+  } | null;
+};
+function detectDocument(image: cv.Mat): Detection {
   // Convert the image to grayscale
   const gray = new cv.Mat();
   cv.cvtColor(image, gray, cv.COLOR_RGBA2GRAY, 0);
@@ -111,7 +125,7 @@ function detectDocument(image: cv.Mat) {
 
   // Perform edge detection using Canny algorithm
   const edges = new cv.Mat();
-  cv.Canny(blurred, edges, 50, 150);
+  cv.Canny(blurred, edges, 75, 200);
 
   // Find contours in the image
   const contours = new cv.MatVector();
@@ -133,9 +147,12 @@ function detectDocument(image: cv.Mat) {
 
     // Check if the contour is rectangular
     if (approx.size().height === 4) {
-      // XXX if we found something, we need to extract the
-      // found document, stop scanning and display the document
-      // bigger
+      // TODO
+      // - if we found something, we need to extract the
+      //   found document, stop scanning and display the document
+      //   bigger
+      // - we also need to return the coordinates, draw the
+      //   rectangles manually on the canvas and add drag-handles!
 
       // Draw a green rectangle around the detected object
       const rect = cv.boundingRect(approx);
@@ -144,6 +161,7 @@ function detectDocument(image: cv.Mat) {
       const point2 = new cv.Point(rect.x + rect.width, rect.y + rect.height);
 
       cv.rectangle(image, point1, point2, [255, 0, 0, 255], 2);
+      break;
     }
   }
 
@@ -153,4 +171,5 @@ function detectDocument(image: cv.Mat) {
   edges.delete();
   contours.delete();
   hierarchy.delete();
+  return { image, points: null };
 }
