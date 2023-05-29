@@ -1,5 +1,6 @@
 import cv from "@techstark/opencv-js";
-import { getDocumentContour, getRect } from "./helper";
+import { Rect, getDocumentContour, getRect } from "./opencv-helper";
+import { CanvasHelper, drawRectangle } from "./canvas-helper";
 
 /**
  * TODO
@@ -12,11 +13,28 @@ import { getDocumentContour, getRect } from "./helper";
 
 // TODO find proper way to inject necessary HTHML
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
-<canvas id="canvasElement"></canvas>
+<canvas id="displayCanvas"></canvas>
+<div>
+  <button id="switchMode">Scan</button>
+</div>
 `;
 
 const videoElement = document.createElement("video");
 videoElement.autoplay = true;
+
+const button = document.querySelector("#switchMode");
+button?.addEventListener("click", (ev) => {
+  if (currentMode === "scanning") {
+    currentMode = "editing";
+    button.innerHTML = "Start";
+    canvasHelper.startDragMode();
+  } else if (currentMode === "editing") {
+    currentMode = "scanning";
+    button.innerHTML = "Scan";
+    canvasHelper.endDragMode();
+    detectDocument();
+  }
+});
 
 /**
  * we need 2 canvas elements
@@ -27,8 +45,8 @@ videoElement.autoplay = true;
  * TODO is there not simpler way to do this???
  */
 const canvasForGettingImage = document.createElement("canvas");
-const canvasElement = document.getElementById(
-  "canvasElement"
+const displayCanvas = document.getElementById(
+  "displayCanvas"
 ) as HTMLCanvasElement;
 
 var constraints = {
@@ -37,6 +55,9 @@ var constraints = {
     height: { ideal: 2160 },
   },
 };
+
+type Mode = "scanning" | "editing";
+let currentMode: Mode = "scanning";
 
 // Get access to the camera stream
 navigator.mediaDevices
@@ -56,18 +77,18 @@ navigator.mediaDevices
 
 let isStreaming = false;
 let contextForGettingImage: CanvasRenderingContext2D;
-let contextForDisplay: CanvasRenderingContext2D;
-videoElement.addEventListener("canplay", (ev) => {
+let canvasHelper: CanvasHelper;
+videoElement.addEventListener("canplay", () => {
   if (isStreaming) {
     return;
   }
   // video stream just started
   isStreaming = true;
 
-  canvasElement.width = videoElement.videoWidth;
-  canvasElement.height = videoElement.videoHeight;
-  canvasElement.style.width = videoElement.videoWidth + "px";
-  canvasElement.style.height = videoElement.videoHeight + "px";
+  displayCanvas.width = videoElement.videoWidth;
+  displayCanvas.height = videoElement.videoHeight;
+  displayCanvas.style.width = videoElement.videoWidth + "px";
+  displayCanvas.style.height = videoElement.videoHeight + "px";
 
   canvasForGettingImage.width = videoElement.videoWidth;
   canvasForGettingImage.height = videoElement.videoHeight;
@@ -78,46 +99,36 @@ videoElement.addEventListener("canplay", (ev) => {
     willReadFrequently: true,
   }) as CanvasRenderingContext2D;
 
-  contextForDisplay = canvasElement.getContext(
-    "2d"
-  ) as CanvasRenderingContext2D;
+  canvasHelper = new CanvasHelper(displayCanvas);
 
-  drawImage();
+  detectDocument();
 });
 
-function drawImage() {
+function detectDocument() {
+  if (currentMode !== "scanning") {
+    return;
+  }
   contextForGettingImage.drawImage(videoElement, 0, 0);
 
   const image = cv.imread(canvasForGettingImage);
 
   const contour = getDocumentContour(image);
-  cv.imshow(canvasElement, image);
+  cv.imshow(displayCanvas, image);
 
   if (contour) {
     // draw rectangle if there are points
     // XXX if rectangle hasn't changed for 1s then freeze image
-    const points = getRect(contour);
+    const rectangle = getRect(contour);
 
-    if (points) {
-      const { p1, p2, p3, p4 } = points;
-      console.log("earwer");
-
-      contextForDisplay.strokeStyle = "green";
-      contextForDisplay.lineWidth = 2;
-      contextForDisplay.beginPath();
-      contextForDisplay.moveTo(p1.x, p1.y);
-      contextForDisplay.lineTo(p2.x, p2.y);
-      contextForDisplay.lineTo(p4.x, p4.y);
-      contextForDisplay.lineTo(p3.x, p3.y);
-      contextForDisplay.lineTo(p1.x, p1.y);
-      contextForDisplay.stroke();
+    if (rectangle) {
+      canvasHelper.drawRectangle(rectangle);
     }
   }
 
   // delay next execution a bit to allow system to calculate everything
   setTimeout(() => {
     requestAnimationFrame(() => {
-      drawImage();
+      detectDocument();
     });
   }, 100);
 }

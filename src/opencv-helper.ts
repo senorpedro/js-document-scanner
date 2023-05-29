@@ -69,7 +69,7 @@ export function extractDocument(
   image: string | HTMLElement,
   resultWidth: number,
   resultHeight: number,
-  rect?: Rect
+  rect: Rect
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
 
