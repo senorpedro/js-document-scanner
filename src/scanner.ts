@@ -1,4 +1,5 @@
 import cv from "@techstark/opencv-js";
+import { getDocumentContour, getRect } from "./helper";
 
 /**
  * TODO
@@ -55,6 +56,7 @@ navigator.mediaDevices
 
 let isStreaming = false;
 let contextForGettingImage: CanvasRenderingContext2D;
+let contextForDisplay: CanvasRenderingContext2D;
 videoElement.addEventListener("canplay", (ev) => {
   if (isStreaming) {
     return;
@@ -76,6 +78,10 @@ videoElement.addEventListener("canplay", (ev) => {
     willReadFrequently: true,
   }) as CanvasRenderingContext2D;
 
+  contextForDisplay = canvasElement.getContext(
+    "2d"
+  ) as CanvasRenderingContext2D;
+
   drawImage();
 });
 
@@ -84,11 +90,29 @@ function drawImage() {
 
   const image = cv.imread(canvasForGettingImage);
 
-  const detected = detectDocument(image);
+  const contour = getDocumentContour(image);
+  cv.imshow(canvasElement, image);
 
-  console.log(detected.points);
+  if (contour) {
+    // draw rectangle if there are points
+    // XXX if rectangle hasn't changed for 1s then freeze image
+    const points = getRect(contour);
 
-  cv.imshow(canvasElement, detected.image);
+    if (points) {
+      const { p1, p2, p3, p4 } = points;
+      console.log("earwer");
+
+      contextForDisplay.strokeStyle = "green";
+      contextForDisplay.lineWidth = 2;
+      contextForDisplay.beginPath();
+      contextForDisplay.moveTo(p1.x, p1.y);
+      contextForDisplay.lineTo(p2.x, p2.y);
+      contextForDisplay.lineTo(p4.x, p4.y);
+      contextForDisplay.lineTo(p3.x, p3.y);
+      contextForDisplay.lineTo(p1.x, p1.y);
+      contextForDisplay.stroke();
+    }
+  }
 
   // delay next execution a bit to allow system to calculate everything
   setTimeout(() => {
@@ -96,80 +120,4 @@ function drawImage() {
       drawImage();
     });
   }, 100);
-}
-
-/**
- * this function handles OpenCV detection. takes input image, detects whatever and returns
- * processed image ()
- *
- * @param image this
- * @returns
- */
-type Detection = {
-  image: cv.Mat;
-  points: {
-    x1: cv.Point;
-    y1: cv.Point;
-    x2: cv.Point;
-    y2: cv.Point;
-  } | null;
-};
-function detectDocument(image: cv.Mat): Detection {
-  // Convert the image to grayscale
-  const gray = new cv.Mat();
-  cv.cvtColor(image, gray, cv.COLOR_RGBA2GRAY, 0);
-
-  // Apply Gaussian blur to reduce noise
-  const blurred = new cv.Mat();
-  cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
-
-  // Perform edge detection using Canny algorithm
-  const edges = new cv.Mat();
-  cv.Canny(blurred, edges, 75, 200);
-
-  // Find contours in the image
-  const contours = new cv.MatVector();
-  const hierarchy = new cv.Mat();
-  cv.findContours(
-    edges,
-    contours,
-    hierarchy,
-    cv.RETR_EXTERNAL,
-    cv.CHAIN_APPROX_SIMPLE
-  );
-
-  // Iterate over the contours and find rectangles
-  for (let i = 0; i < contours.size(); i++) {
-    const contour = contours.get(i);
-    const perimeter = cv.arcLength(contour, true);
-    const approx = new cv.Mat();
-    cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
-
-    // Check if the contour is rectangular
-    if (approx.size().height === 4) {
-      // TODO
-      // - if we found something, we need to extract the
-      //   found document, stop scanning and display the document
-      //   bigger
-      // - we also need to return the coordinates, draw the
-      //   rectangles manually on the canvas and add drag-handles!
-
-      // Draw a green rectangle around the detected object
-      const rect = cv.boundingRect(approx);
-
-      const point1 = new cv.Point(rect.x, rect.y);
-      const point2 = new cv.Point(rect.x + rect.width, rect.y + rect.height);
-
-      cv.rectangle(image, point1, point2, [255, 0, 0, 255], 2);
-      break;
-    }
-  }
-
-  // Display the result
-  gray.delete();
-  blurred.delete();
-  edges.delete();
-  contours.delete();
-  hierarchy.delete();
-  return { image, points: null };
 }
