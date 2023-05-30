@@ -128,8 +128,6 @@ export class CanvasHelper {
 
       this.rectangle = { p1, p2, p3, p4 };
 
-      console.log(JSON.stringify(this.rectangle));
-
       // Redraw canvas
       this.drawCanvas(this.image!, this.rectangle, true);
     }

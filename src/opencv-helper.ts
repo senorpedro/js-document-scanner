@@ -113,7 +113,7 @@ export function extractDocument(
 
   cv.imshow(canvas, warpedDst);
 
-  // image.delete();
+  image.delete();
   warpedDst.delete();
   return canvas;
 }

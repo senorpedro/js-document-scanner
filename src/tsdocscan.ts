@@ -31,7 +31,7 @@ const videoElement = document.createElement("video");
 videoElement.autoplay = true;
 
 const switchModeButton = document.querySelector("#switchMode");
-switchModeButton?.addEventListener("click", (ev) => {
+switchModeButton?.addEventListener("click", () => {
   if (currentMode === "auto") {
     currentMode = "manual";
     switchModeButton.innerHTML = "Auto Scan Mode";
@@ -108,10 +108,12 @@ videoElement.addEventListener("canplay", () => {
   isStreaming = true;
 
   // setup canvas elements
+  /*
   displayCanvas.width = videoElement.videoWidth;
   displayCanvas.height = videoElement.videoHeight;
   displayCanvas.style.width = videoElement.videoWidth + "px";
   displayCanvas.style.height = videoElement.videoHeight + "px";
+  */
 
   canvasForGettingImage.width = videoElement.videoWidth;
   canvasForGettingImage.height = videoElement.videoHeight;
