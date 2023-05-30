@@ -66,24 +66,14 @@ function getDocumentContour(img: cv.Mat): cv.Mat {
  * @returns `HTMLCanvasElement` containing undistorted image
  */
 export function extractDocument(
-  image: string | HTMLElement,
+  image: cv.Mat,
   resultWidth: number,
   resultHeight: number,
   rect: Rect
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
 
-  const img = cv.imread(image);
-
-  const contour = getDocumentContour(img);
-
-  const points = rect || getRect(contour);
-
-  if (points === null) {
-    throw new Error("nothing to extract");
-  }
-
-  const { p1, p2, p3, p4 } = points;
+  const { p1, p2, p3, p4 } = rect;
 
   let warpedDst = new cv.Mat();
 
@@ -112,7 +102,7 @@ export function extractDocument(
 
   let M = cv.getPerspectiveTransform(srcTri, dstTri);
   cv.warpPerspective(
-    img,
+    image,
     warpedDst,
     M,
     dsize,
@@ -123,7 +113,7 @@ export function extractDocument(
 
   cv.imshow(canvas, warpedDst);
 
-  img.delete();
+  // image.delete();
   warpedDst.delete();
   return canvas;
 }

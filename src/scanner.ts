@@ -1,5 +1,5 @@
-import cv from "@techstark/opencv-js";
-import { scanImage } from "./opencv-helper";
+import cv, { extractChannel } from "@techstark/opencv-js";
+import { Rect, extractDocument, scanImage } from "./opencv-helper";
 import { CanvasHelper } from "./canvas-helper";
 
 /**
@@ -11,28 +11,54 @@ import { CanvasHelper } from "./canvas-helper";
  *
  */
 
-// TODO find proper way to inject necessary HTHML
+/**
+ * TODO find proper way to inject necessary HTHML
+ * - pass in canvas
+ * - pass in options for line color, thickness etc
+ * - expose handlers for switching mode (auto, manual) and cutting document
+ *  (call callback with image as blob etc)
+ */
 document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
 <canvas id="displayCanvas"></canvas>
 <div>
-  <button id="switchMode">Scan</button>
+  <button id="switchMode">Manual Mode</button>
+  <button id="extractDocument">Extract Document</button>
 </div>
+<div id="target"></div>
 `;
 
 const videoElement = document.createElement("video");
 videoElement.autoplay = true;
 
-const button = document.querySelector("#switchMode");
-button?.addEventListener("click", (ev) => {
-  if (currentMode === "scanning") {
-    currentMode = "editing";
-    button.innerHTML = "Start";
+const switchModeButton = document.querySelector("#switchMode");
+switchModeButton?.addEventListener("click", (ev) => {
+  if (currentMode === "auto") {
+    currentMode = "manual";
+    switchModeButton.innerHTML = "Auto Scan Mode";
     canvasHelper.startDragMode();
-  } else if (currentMode === "editing") {
-    currentMode = "scanning";
-    button.innerHTML = "Scan";
+  } else if (currentMode === "manual") {
+    currentMode = "auto";
+    switchModeButton.innerHTML = "Manual Mode";
     canvasHelper.endDragMode();
     nextTick();
+  }
+});
+
+const extractDocumentButton = document.querySelector("#extractDocument");
+extractDocumentButton?.addEventListener("click", () => {
+  const width = 400;
+  const height = 500;
+
+  if (currentImage && currentRectangle) {
+    const imgCanvas = extractDocument(
+      currentImage,
+      width,
+      height,
+      currentRectangle
+    );
+
+    document.getElementById("target")!.innerHTML = "";
+    document.getElementById("target")!.appendChild(imgCanvas);
   }
 });
 
@@ -42,7 +68,7 @@ button?.addEventListener("click", (ev) => {
  *    stream -> video element -> canvas element -> image
  *  - second one for displaying the image once processed by
  *    open CV
- * TODO is there not simpler way to do this???
+ * TODO is there no simpler way to do this???
  */
 const canvasForGettingImage = document.createElement("canvas");
 const displayCanvas = document.getElementById(
@@ -56,12 +82,13 @@ const constraints = {
   },
 };
 
-type Mode = "scanning" | "editing";
-let currentMode: Mode = "scanning";
+type Mode = "auto" | "manual";
+let currentMode: Mode = "auto";
 let isStreaming = false;
 let contextForGettingImage: CanvasRenderingContext2D;
 let canvasHelper: CanvasHelper;
 let currentImage: cv.Mat;
+let currentRectangle: Rect | null;
 
 // Get access to the camera stream
 navigator.mediaDevices
@@ -101,7 +128,7 @@ videoElement.addEventListener("canplay", () => {
 });
 
 function nextTick() {
-  if (currentMode !== "scanning") {
+  if (currentMode !== "auto") {
     // stop ticking
     return;
   }
@@ -109,9 +136,9 @@ function nextTick() {
 
   currentImage = cv.imread(canvasForGettingImage);
 
-  const rectangle = scanImage(currentImage);
+  currentRectangle = scanImage(currentImage);
 
-  canvasHelper.drawCanvas(currentImage, rectangle);
+  canvasHelper.drawCanvas(currentImage, currentRectangle);
 
   // delay next execution a bit to allow system to calculate everything
   setTimeout(() => {
