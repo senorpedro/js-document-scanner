@@ -1,17 +1,18 @@
 import cv from "@techstark/opencv-js";
 import { Rect } from "./opencv-helper";
 
-// Drag Handle Properties
-
 export class CanvasHelper {
   canvas: HTMLCanvasElement;
   context: CanvasRenderingContext2D;
   rectangle: Rect | null = null;
   dragHandleRadius = 20;
-  dragHandleColor = "rgba(255, 0, 0, 0.8)";
+  strokeColor = "rgba(0, 0, 255, 0.6)";
+  fillColor = "rgba(0, 0, 255, 0.1)";
+
   selectedDragHandle: cv.Point | null = null;
   dragHandleStartX: number | null = null;
   dragHandleStartY: number | null = null;
+  image: cv.Mat | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -24,8 +25,9 @@ export class CanvasHelper {
     const ctx = this.context;
 
     // paint rectangle
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 8;
+    ctx.strokeStyle = this.strokeColor;
+    ctx.fillStyle = this.fillColor;
+    ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
@@ -33,6 +35,11 @@ export class CanvasHelper {
     ctx.lineTo(p3.x, p3.y);
     ctx.lineTo(p1.x, p1.y);
     ctx.stroke();
+
+    ctx.closePath();
+
+    // Fill the trapezoid with the defined color
+    ctx.fill();
   }
 
   startDragMode() {
@@ -40,6 +47,16 @@ export class CanvasHelper {
     this.canvas.addEventListener("mousemove", this.handleMouseMove);
     this.canvas.addEventListener("mouseup", this.handleMouseUp);
 
+    this.drawDragHandles();
+  }
+
+  endDragMode() {
+    this.canvas.removeEventListener("mousedown", this.handleMouseDown);
+    this.canvas.removeEventListener("mousemove", this.handleMouseMove);
+    this.canvas.removeEventListener("mouseup", this.handleMouseUp);
+  }
+
+  drawDragHandles() {
     const { p1, p2, p3, p4 } = this.rectangle as Rect;
 
     // Draw drag handles
@@ -49,17 +66,11 @@ export class CanvasHelper {
     this.drawDragHandle(p4.x, p4.y);
   }
 
-  endDragMode() {
-    this.canvas.removeEventListener("mousedown", this.handleMouseDown);
-    this.canvas.removeEventListener("mousemove", this.handleMouseMove);
-    this.canvas.removeEventListener("mouseup", this.handleMouseUp);
-  }
-
   drawDragHandle(x: number, y: number) {
     const ctx = this.context;
     ctx.beginPath();
     ctx.arc(x, y, this.dragHandleRadius, 0, 2 * Math.PI);
-    ctx.fillStyle = this.dragHandleColor;
+    ctx.fillStyle = this.strokeColor;
     ctx.fill();
     ctx.closePath();
   }
@@ -68,14 +79,8 @@ export class CanvasHelper {
     const mouseX = event.clientX - this.canvas.offsetLeft;
     const mouseY = event.clientY - this.canvas.offsetTop;
 
-    const { p1, p2, p3, p4 } = this.rectangle as Rect;
     // Check if any drag handle is selected
-    if (
-      this.isInsideDragHandle(mouseX, mouseY, p1) ||
-      this.isInsideDragHandle(mouseX, mouseY, p2) ||
-      this.isInsideDragHandle(mouseX, mouseY, p3) ||
-      this.isInsideDragHandle(mouseX, mouseY, p4)
-    ) {
+    if (this.isInsideDragHandles(event)) {
       this.selectedDragHandle = { x: mouseX, y: mouseY };
       this.dragHandleStartX = mouseX;
       this.dragHandleStartY = mouseY;
@@ -84,6 +89,12 @@ export class CanvasHelper {
 
   // Handle Mouse Move Event
   handleMouseMove = (event: MouseEvent) => {
+    if (this.isInsideDragHandles(event)) {
+      document.body.style.cursor = "pointer";
+    } else {
+      document.body.style.cursor = "auto";
+    }
+
     if (this.selectedDragHandle) {
       const mouseX = event.clientX - this.canvas.offsetLeft;
       const mouseY = event.clientY - this.canvas.offsetTop;
@@ -93,20 +104,20 @@ export class CanvasHelper {
 
       const { p1, p2, p3, p4 } = this.rectangle as Rect;
 
-      const samePoint = (p1: cv.Point, p2: cv.Point): boolean =>
-        p1.x === p2.x && p1.y === p2.y;
+      const inDragHandle = (p1: cv.Point, p2: cv.Point) =>
+        this.isInsideDragHandle(p1.x, p1.y, p2);
 
       // Update rectangle dimensions based on drag handle being dragged
-      if (samePoint(this.selectedDragHandle, p1)) {
+      if (inDragHandle(this.selectedDragHandle, p1)) {
         p1.x += offsetX;
         p1.y += offsetY;
-      } else if (samePoint(this.selectedDragHandle, p2)) {
+      } else if (inDragHandle(this.selectedDragHandle, p2)) {
         p2.x += offsetX;
         p2.y += offsetY;
-      } else if (samePoint(this.selectedDragHandle, p3)) {
+      } else if (inDragHandle(this.selectedDragHandle, p3)) {
         p3.x += offsetX;
         p3.y += offsetY;
-      } else if (samePoint(this.selectedDragHandle, p4)) {
+      } else if (inDragHandle(this.selectedDragHandle, p4)) {
         p4.x += offsetX;
         p4.y += offsetY;
       }
@@ -117,15 +128,45 @@ export class CanvasHelper {
 
       this.rectangle = { p1, p2, p3, p4 };
 
+      console.log(JSON.stringify(this.rectangle));
+
       // Redraw canvas
-      // drawCanvas();
+      this.drawCanvas(this.image!, this.rectangle, true);
     }
   };
+
+  drawCanvas(image: cv.Mat, rectangle: Rect | null, showDragHandles = false) {
+    this.image = image;
+    cv.imshow(this.canvas, image);
+
+    if (rectangle) {
+      this.rectangle = rectangle;
+      this.drawRectangle(rectangle);
+    }
+
+    if (showDragHandles) {
+      this.drawDragHandles();
+    }
+  }
 
   // Handle Mouse Up Event
   handleMouseUp = () => {
     this.selectedDragHandle = null;
   };
+
+  isInsideDragHandles(ev: MouseEvent) {
+    const mouseX = ev.clientX - this.canvas.offsetLeft;
+    const mouseY = ev.clientY - this.canvas.offsetTop;
+
+    const { p1, p2, p3, p4 } = this.rectangle as Rect;
+    // Check if any drag handle is selected
+    return (
+      this.isInsideDragHandle(mouseX, mouseY, p1) ||
+      this.isInsideDragHandle(mouseX, mouseY, p2) ||
+      this.isInsideDragHandle(mouseX, mouseY, p3) ||
+      this.isInsideDragHandle(mouseX, mouseY, p4)
+    );
+  }
 
   // Check if Point is Inside Drag Handle
   isInsideDragHandle(

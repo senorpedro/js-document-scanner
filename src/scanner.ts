@@ -1,6 +1,6 @@
 import cv from "@techstark/opencv-js";
-import { Rect, getDocumentContour, getRect } from "./opencv-helper";
-import { CanvasHelper, drawRectangle } from "./canvas-helper";
+import { scanImage } from "./opencv-helper";
+import { CanvasHelper } from "./canvas-helper";
 
 /**
  * TODO
@@ -32,7 +32,7 @@ button?.addEventListener("click", (ev) => {
     currentMode = "scanning";
     button.innerHTML = "Scan";
     canvasHelper.endDragMode();
-    detectDocument();
+    nextTick();
   }
 });
 
@@ -49,7 +49,7 @@ const displayCanvas = document.getElementById(
   "displayCanvas"
 ) as HTMLCanvasElement;
 
-var constraints = {
+const constraints = {
   video: {
     width: { ideal: 4096 },
     height: { ideal: 2160 },
@@ -58,26 +58,21 @@ var constraints = {
 
 type Mode = "scanning" | "editing";
 let currentMode: Mode = "scanning";
+let isStreaming = false;
+let contextForGettingImage: CanvasRenderingContext2D;
+let canvasHelper: CanvasHelper;
+let currentImage: cv.Mat;
 
 // Get access to the camera stream
 navigator.mediaDevices
   .getUserMedia(constraints)
   .then(function (stream) {
-    // once we have the camera, we start detecting documents
-    const settings = stream.getVideoTracks()[0].getSettings();
-    console.log(
-      `settings width = ${settings.width}px, height = ${settings.height}px`
-    );
     videoElement.srcObject = stream;
-    // videoElement.play();
   })
   .catch(function (error) {
     console.error("Error accessing the camera: ", error);
   });
 
-let isStreaming = false;
-let contextForGettingImage: CanvasRenderingContext2D;
-let canvasHelper: CanvasHelper;
 videoElement.addEventListener("canplay", () => {
   if (isStreaming) {
     return;
@@ -85,6 +80,7 @@ videoElement.addEventListener("canplay", () => {
   // video stream just started
   isStreaming = true;
 
+  // setup canvas elements
   displayCanvas.width = videoElement.videoWidth;
   displayCanvas.height = videoElement.videoHeight;
   displayCanvas.style.width = videoElement.videoWidth + "px";
@@ -101,34 +97,26 @@ videoElement.addEventListener("canplay", () => {
 
   canvasHelper = new CanvasHelper(displayCanvas);
 
-  detectDocument();
+  nextTick();
 });
 
-function detectDocument() {
+function nextTick() {
   if (currentMode !== "scanning") {
+    // stop ticking
     return;
   }
   contextForGettingImage.drawImage(videoElement, 0, 0);
 
-  const image = cv.imread(canvasForGettingImage);
+  currentImage = cv.imread(canvasForGettingImage);
 
-  const contour = getDocumentContour(image);
-  cv.imshow(displayCanvas, image);
+  const rectangle = scanImage(currentImage);
 
-  if (contour) {
-    // draw rectangle if there are points
-    // XXX if rectangle hasn't changed for 1s then freeze image
-    const rectangle = getRect(contour);
-
-    if (rectangle) {
-      canvasHelper.drawRectangle(rectangle);
-    }
-  }
+  canvasHelper.drawCanvas(currentImage, rectangle);
 
   // delay next execution a bit to allow system to calculate everything
   setTimeout(() => {
     requestAnimationFrame(() => {
-      detectDocument();
+      nextTick();
     });
   }, 100);
 }

@@ -16,7 +16,7 @@ function distance(p1: cv.Point, p2: cv.Point) {
   return Math.hypot(p1.x - p2.x, p1.y - p2.y);
 }
 
-export function getDocumentContour(img: cv.Mat): cv.Mat {
+function getDocumentContour(img: cv.Mat): cv.Mat {
   const imgGray = new cv.Mat();
   cv.cvtColor(img, imgGray, cv.COLOR_RGBA2GRAY);
 
@@ -126,6 +126,11 @@ export function extractDocument(
   img.delete();
   warpedDst.delete();
   return canvas;
+}
+
+export function scanImage(image: cv.Mat): Rect | null {
+  const contour = getDocumentContour(image);
+  return contour ? getRect(contour) : null;
 }
 
 export function getRect(contour: cv.Mat): Rect | null {
