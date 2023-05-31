@@ -8,6 +8,9 @@ import { CanvasHelper } from "./canvas-helper";
  *    - pass scanned document image to outside
  *    - expose canvas that displays scanning-feed
  *    - customize drag-handles etc
+ *
+ *  - scale image to fit in canvas! => especially when using continuity
+ *    camera!
  */
 
 /**
