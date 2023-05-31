@@ -8,6 +8,7 @@ export class CanvasHelper {
   dragHandleRadius = 20;
   strokeColor = "rgba(0, 0, 255, 0.6)";
   fillColor = "rgba(0, 0, 255, 0.1)";
+  lineWidth = 4;
 
   selectedDragHandle: cv.Point | null = null;
   dragHandleStartX: number | null = null;
@@ -27,7 +28,7 @@ export class CanvasHelper {
     // paint rectangle
     ctx.strokeStyle = this.strokeColor;
     ctx.fillStyle = this.fillColor;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = this.lineWidth;
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
@@ -135,7 +136,7 @@ export class CanvasHelper {
 
   drawCanvas(image: cv.Mat, rectangle: Rect | null, showDragHandles = false) {
     this.image = image;
-    // this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
     // XXX cv.imshow does set canvas height and width,
     //     so maybe it makes sense to use a tmp canvas
     //     that is not attached to the DOM here

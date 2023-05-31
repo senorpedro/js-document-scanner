@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Document Scanner Test Page</title>
+  <title>Document Scanner Dummy Test Page</title>
   <style>
     html,
     body {
@@ -24,11 +24,49 @@
       width: var(--width);
     }
   </style>
+  <script type="module" src="/src/tsdocscan.ts"></script>
 </head>
 
 <body>
-  <div id="app"></div>
-  <script type="module" src="/src/tsdocscan.ts"></script>
+  <div id="app">
+
+    <canvas id="displayCanvas"></canvas>
+    <div>
+      <button id="switchMode">Manual Mode</button>
+      <button id="extractDocument">Extract Document</button>
+    </div>
+    <div id="target"></div>
+
+
+  </div>
+
+  <script type="module">
+    import { TsDocScan } from '/src/tsdocscan';
+    const canvas = document.getElementById('displayCanvas');
+    const scanner = new TsDocScan({ canvas })
+
+    // button for toggling between auto / manual mode
+    const switchModeButton = document.querySelector("#switchMode");
+    switchModeButton?.addEventListener("click", () => {
+      const mode = scanner.toggleMode();
+      if (mode === "auto") {
+        switchModeButton.innerHTML = "Auto Scan Mode";
+      } else if (mode === "manual") {
+        switchModeButton.innerHTML = "Manual Mode";
+      }
+    });
+
+    // button for extracting selected document
+    const extractDocumentButton = document.querySelector("#extractDocument");
+    extractDocumentButton?.addEventListener("click", () => {
+      const width = 400;
+      const height = 500;
+      const canvas = scanner.extractDocument(width, height);
+      document.getElementById("target").innerHTML = "";
+      document.getElementById("target").appendChild(canvas);
+    });
+
+  </script>
 </body>
 
 </html>
