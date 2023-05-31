@@ -120,7 +120,13 @@ export function extractDocument(
 
 export function scanImage(image: cv.Mat): Rect | null {
   const contour = getDocumentContour(image);
-  return contour ? getRect(contour) : null;
+  let ret: Rect | null = null;
+  if (contour) {
+    ret = getRect(contour);
+    contour.delete();
+  }
+
+  return ret;
 }
 
 export function getRect(contour: cv.Mat): Rect | null {

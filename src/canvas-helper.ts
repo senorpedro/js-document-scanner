@@ -135,6 +135,16 @@ export class CanvasHelper {
 
   drawCanvas(image: cv.Mat, rectangle: Rect | null, showDragHandles = false) {
     this.image = image;
+    // this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    // XXX cv.imshow does set canvas height and width,
+    //     so maybe it makes sense to use a tmp canvas
+    //     that is not attached to the DOM here
+    /*
+    const tmpCanvas = document.createElement("canvas");
+    cv.imshow(tmpCanvas, image);
+
+    this.context.drawImage(tmpCanvas, 0, 0);
+    */
     cv.imshow(this.canvas, image);
 
     if (rectangle) {

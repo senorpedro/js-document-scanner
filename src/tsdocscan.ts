@@ -1,4 +1,4 @@
-import cv, { extractChannel } from "@techstark/opencv-js";
+import cv from "@techstark/opencv-js";
 import { Rect, extractDocument, scanImage } from "./opencv-helper";
 import { CanvasHelper } from "./canvas-helper";
 
@@ -8,7 +8,6 @@ import { CanvasHelper } from "./canvas-helper";
  *    - pass scanned document image to outside
  *    - expose canvas that displays scanning-feed
  *    - customize drag-handles etc
- *
  */
 
 /**
@@ -108,12 +107,10 @@ videoElement.addEventListener("canplay", () => {
   isStreaming = true;
 
   // setup canvas elements
-  /*
   displayCanvas.width = videoElement.videoWidth;
   displayCanvas.height = videoElement.videoHeight;
   displayCanvas.style.width = videoElement.videoWidth + "px";
   displayCanvas.style.height = videoElement.videoHeight + "px";
-  */
 
   canvasForGettingImage.width = videoElement.videoWidth;
   canvasForGettingImage.height = videoElement.videoHeight;
@@ -135,6 +132,7 @@ function nextTick() {
     return;
   }
   contextForGettingImage.drawImage(videoElement, 0, 0);
+  currentImage && currentImage.delete();
 
   currentImage = cv.imread(canvasForGettingImage);
 
